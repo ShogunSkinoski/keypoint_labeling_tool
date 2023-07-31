@@ -1,0 +1,11 @@
+colorama==0.4.6
+iniconfig==2.0.0
+numpy==1.25.1
+opencv-python==4.8.0.74
+packaging==23.1
+pluggy==1.2.0
+PyQt5==5.15.9
+PyQt5-Qt5==5.15.2
+PyQt5-sip==12.12.2
+pytest==7.4.0
+pywin32==306
