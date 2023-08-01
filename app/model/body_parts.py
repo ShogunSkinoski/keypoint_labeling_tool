@@ -16,7 +16,8 @@ class Keypoint:
     id: int
     x: int
     y: int
-
+    def to_list(self):
+        return [self.id,self.x, self.y]
 @dataclass
 class ImageData():
     image_id: str
