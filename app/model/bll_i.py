@@ -11,3 +11,9 @@ class BussinesLogicLayer(abc.ABC):
         return the position of the keypoints as list
         """
         pass
+    @abc.abstractmethod
+    def insert_one_image_data(self, image_data):
+        """
+        insert one image data object into the database
+        """
+        pass  
