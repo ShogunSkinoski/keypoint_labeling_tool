@@ -3,10 +3,9 @@ import os
 import random
 import numpy as np
 
-from app.view.main_window import MainWindow
 from app.const.app_const import KeypointConst
-from app.model.json_repo import JsonRepo
-from app.model.labelling_bll import LabelingBussinesModel
+from app.model.body_parts import ImageSize, Keypoint, ImageData
+from app.utils.utils import creat_unique_id
 from app.model.bll_i import BussinesLogicLayer
 import cv2
 from PyQt5.QtWidgets import QApplication, QMainWindow
@@ -16,43 +15,60 @@ class MainWindowController:
     
     def __init__(self, model: BussinesLogicLayer, view: QMainWindow):
         self.model = model
-
+        self.side_selected = False
         self.view = view
         self.view.exit_button.clicked.connect(self.exit_button_clicked)
         self.view.browse_button.clicked.connect(self.browse_button_clicked)
         self.view.open_image_button.clicked.connect(self.open_image_button_clicked)
+        self.view.save_button.clicked.connect(self.save_button_clicked)
         
-        self.positions = self.model.get_positions(KeypointConst.IMAGE_DATA_FRONT)
+        self.view.front_side_button.clicked.connect(self.front_side_button_clicked)
+        self.view.back_side_button.clicked.connect(self.back_side_button_clicked)
         
         self.view.show()
-        
+    def front_side_button_clicked(self):
+        self.positions = self.model.get_positions(KeypointConst.IMAGE_DATA_FRONT)
+        self.side_selected = True
+    def back_side_button_clicked(self):
+        self.positions = self.model.get_positions(KeypointConst.IMAGE_DATA_BACK)
+        self.side_selected = True
     def browse_button_clicked(self):
         try:
-            filename = self.view.open_file_dialog()
-            self.img_stream = open(filename[0], 'rb')
-            self.view.fileway.setText(filename[0])
+            self.filename = self.view.open_file_dialog()
+            self.img_stream = open(self.filename[0], 'rb')
+            self.view.fileway.setText(self.filename[0])
         except NameError:
             self.browse_button_clicked()
         except FileNotFoundError:
-            raise FileNotFoundError(f'File {self.file} not found')
+            return
     
     def save_button_clicked(self):
-        raise NotImplementedError
-    
+        if hasattr(self, 'img') == False:
+            self.view.raise_error_message("Please select an image!")
+        else:
+            img_size = ImageSize(self.img.shape[0], self.img.shape[1])
+            img_id = creat_unique_id()
+            keypoint_dict = self.model.list_to_dict(self.positions)
+            image_data = ImageData(img_id, img_size, keypoint_dict, self.filename[0])
+            self.model.insert_one_image_data(image_data)
+            self.side_selected = False
 
-
-    def open_image_button_clicked(self):      
-        self.img = self.get_img_from_file()
-        max_width = GetSystemMetrics(0)
-        max_height = GetSystemMetrics(1)
-        self.resize_img(max_width, max_height)
-        self.left_click = None
-        self.check = False
-        self.left_click = None
-        self.view.init_base_img(self.img)
-        self.view.draw_skeloton(self.positions)
-        self.view.start_labeling(self.mouse_callback)
-        
+    def open_image_button_clicked(self):
+        if self.side_selected == False:
+            self.view.raise_error_message("Please select a side!")
+        else:
+            self.img = self.get_img_from_file() 
+            if self.img is None:
+                return
+            max_width = GetSystemMetrics(0)
+            max_height = GetSystemMetrics(1)
+            self.resize_img(max_width, max_height)
+            self.check = False
+            self.left_click = None
+            self.view.init_base_img(self.img)
+            self.view.draw_skeloton(self.positions)
+            self.view.start_labeling(self.mouse_callback)
+            
         
     def exit_button_clicked(self):
         QApplication.quit()
@@ -79,22 +95,21 @@ class MainWindowController:
                 self.check = False  
         
     def get_img_from_file(self):
-        img_bytes = bytearray(self.img_stream.read())
-        img_np_array = np.asarray(img_bytes, dtype=np.uint8)
-        img = cv2.imdecode(img_np_array, cv2.IMREAD_UNCHANGED)
-        return img
-    
+        try:
+            img_bytes = bytearray(self.img_stream.read())
+            img_np_array = np.asarray(img_bytes, dtype=np.uint8)
+            img = cv2.imdecode(img_np_array, cv2.IMREAD_UNCHANGED)
+            return img
+        except AttributeError as e:
+            self.view.raise_error_message("Please select an image!")  
+            return None  
+        except cv2.error as e:
+            self.view.raise_error_message("Please select an image!")
+            return None
+        
     def resize_img(self, max_width, max_height):
         img_width, img_height,_ = self.img.shape
         while img_width > max_width or img_height > max_height:
-            img_width -= 50
-            img_height -= 50
+            img_width = 50
+            img_height += 50
         cv2.resize(self.img, (img_width, img_height))
-        
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    
-    model = LabelingBussinesModel(JsonRepo("app\resources\test.json"))
-    view = MainWindow()
-    controller = MainWindowController(model, view)
-    sys.exit(app.exec_())
